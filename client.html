@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live OCR Data Viewer</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+    #log { white-space: pre-wrap; font-size: 1.2em; }
+  </style>
+</head>
+<body>
+  <h2>📡 Live OCR WebSocket Stream</h2>
+  <div id="log">Waiting for data...</div>
+
+  <script>
+    const log = document.getElementById("log");
+    const socket = new WebSocket("ws://localhost:8765");
+
+    socket.onopen = () => {
+      log.textContent = "✅ Connected to WebSocket server...\n";
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const text = `🕒 t: ${data.t}\n💨 VO2: ${data.VO2}\n🔥 VCO2: ${data.VCO2}\n---\n`;
+      log.textContent = text + log.textContent;
+    };
+
+    socket.onerror = (error) => {
+      log.textContent += "\n❌ WebSocket error\n";
+      console.error(error);
+    };
+
+    socket.onclose = () => {
+      log.textContent += "\n🚪 Disconnected from WebSocket\n";
+    };
+  </script>
+</body>
+</html>
