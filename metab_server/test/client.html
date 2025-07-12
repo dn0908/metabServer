@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Live OCR Data Viewer</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 20px; }
+    h1 { color: #0ff; }
+    #log { white-space: pre-line; font-size: 1.2em; }
+  </style>
+</head>
+<body>
+  <h1>METAB DATA viewer</h1>
+  <div id="log">Connecting to WebSocket...</div>
+
+  <script>
+    const log = document.getElementById("log");
+    const ws = new WebSocket("ws://localhost:8765");
+
+    ws.onopen = () => {
+      log.textContent = "CONNECTED ^^ \n\n";
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const message = ` t: ${data.t}\n  VO2: ${data.VO2}\n  VCO2: ${data.VCO2}\n---\n`;
+        log.textContent = message + log.textContent;
+      } catch (e) {
+        log.textContent = `ERRR invalid data? : ${event.data}\n` + log.textContent;
+      }
+    };
+
+    ws.onerror = (err) => {
+      log.textContent += "\nwebsocket ERRRR";
+      console.error("websocket ERRRR : ", err);
+    };
+
+    ws.onclose = () => {
+      log.textContent += "\nXXXXXXXXXX        DISCONNECTEDDDDDDDDDDDDD";
+    };
+  </script>
+</body>
+</html>

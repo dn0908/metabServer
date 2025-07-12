@@ -8,10 +8,11 @@ import json
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-
 rois = []
 drawing = False
 ix, iy = -1, -1
+
+connected_clients = set()
 
 def draw_roi(event, x, y, flags, param):
     global drawing, ix, iy, rois
@@ -30,18 +31,21 @@ def draw_roi(event, x, y, flags, param):
         cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
         cv2.imshow("DRAG", img)
 
-img = cv2.cvtColor(np.array(ImageGrab.grab()), cv2.COLOR_RGB2BGR)
-cv2.namedWindow("DRAG")
-cv2.setMouseCallback("DRAG", draw_roi)
-cv2.imshow("DRAG", img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+async def handler(websocket):
+    print("[SERVER] Client connected")
+    connected_clients.add(websocket)
+    try:
+        async for _ in websocket:
+            pass
+    except:
+        pass
+    finally:
+        connected_clients.remove(websocket)
+        print("[SERVER] Client disconnected")
 
-if len(rois) != 3:
-    print("333333333333333333")
-    exit()
 
-async def ocr_and_send(websocket):
+async def ocr_and_broadcast():
+    await asyncio.sleep(1)
     prev_t = None
     while True:
         t_img = np.array(ImageGrab.grab(bbox=rois[0]))
@@ -67,18 +71,32 @@ async def ocr_and_send(websocket):
                 "VCO2": vco2_val
             })
             print("[Sending]", message)
-            await websocket.send(message)
+            await asyncio.gather(*[ws.send(message) for ws in connected_clients])
             prev_t = t_val
 
         if cv2.waitKey(100) & 0xFF == ord('q'):
             break
 
+        await asyncio.sleep(0.1)
+
+
 async def main():
-    uri = "ws://localhost:8765"
-    print("connecting to")
-    async with websockets.connect(uri) as websocket:
-        print("connection OK")
-        await ocr_and_send(websocket)
+    # ROI selection
+    global img
+    img = cv2.cvtColor(np.array(ImageGrab.grab()), cv2.COLOR_RGB2BGR)
+    cv2.namedWindow("DRAG")
+    cv2.setMouseCallback("DRAG", draw_roi)
+    cv2.imshow("DRAG", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    if len(rois) != 3:
+        print("33333333333333333")
+        return
+
+    async with websockets.serve(handler, "0.0.0.0", 8765):
+        print("[SERVER] WebSocket server running at ws://0.0.0.0:8765")
+        await ocr_and_broadcast() #runinlooooop
 
 if __name__ == "__main__":
     asyncio.run(main())
